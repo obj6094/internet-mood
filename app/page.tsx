@@ -93,37 +93,36 @@ export default function Home() {
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [voting, setVoting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    const votesRes = await supabase
-      .from("mood_votes")
-      .select("mood")
-      .eq("vote_date", today);
-
-    if (votesRes.error) {
-      setError(votesRes.error.message);
-      setLoading(false);
-      return;
-    }
-
+  const emptyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const m of MOODS) counts[m] = 0;
-    for (const row of votesRes.data ?? []) {
-      const m = row.mood as string;
-      counts[m] = (counts[m] ?? 0) + 1;
-    }
+    return counts;
+  }, []);
 
+  const loadTodayCounts = useCallback(async () => {
+    const res = await supabase
+      .from("mood_vote_counts_by_day")
+      .select("mood, vote_count")
+      .eq("vote_date", today);
+
+    if (res.error) return { error: res.error.message, counts: null };
+
+    const counts: Record<string, number> = { ...emptyCounts };
+    for (const row of res.data ?? []) {
+      const m = row.mood as string;
+      counts[m] = Number(row.vote_count);
+    }
+    return { error: null, counts };
+  }, [today, emptyCounts]);
+
+  const loadArchive = useCallback(async () => {
     const archRes = await supabase
       .from("daily_mood_archive")
       .select("vote_date, mood, votes")
       .order("vote_date", { ascending: false });
 
-    if (archRes.error) {
-      setError(archRes.error.message);
-      setLoading(false);
-      return;
-    }
+    if (archRes.error) return { error: archRes.error.message, map: null };
 
     const map = new Map<string, ArchiveRow[]>();
     for (const row of archRes.data ?? []) {
@@ -136,19 +135,39 @@ export default function Home() {
       });
       map.set(d, list);
     }
+    return { error: null, map };
+  }, []);
+
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    const [todayRes, archRes] = await Promise.all([
+      loadTodayCounts(),
+      loadArchive(),
+    ]);
+
+    if (todayRes.error) {
+      setError(todayRes.error);
+      setLoading(false);
+      return;
+    }
+    if (archRes.error) {
+      setError(archRes.error);
+      setLoading(false);
+      return;
+    }
 
     setError(null);
-    setTodayCounts(counts);
-    setArchiveByDate(map);
+    setTodayCounts(todayRes.counts!);
+    setArchiveByDate(archRes.map!);
     setLoading(false);
-  }, [today]);
+  }, [loadTodayCounts, loadArchive]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      void loadData();
+      void loadInitial();
     }, 0);
     return () => clearTimeout(t);
-  }, [loadData]);
+  }, [loadInitial]);
 
   const totalToday = useMemo(
     () => Object.values(todayCounts).reduce((a, b) => a + b, 0),
@@ -156,18 +175,26 @@ export default function Home() {
   );
 
   async function onVote(mood: Mood) {
-    setVoting(true);
+    if (loading) return;
     setError(null);
+
+    setTodayCounts((prev) => ({
+      ...prev,
+      [mood]: (prev[mood] ?? 0) + 1,
+    }));
+
     const { error: insErr } = await supabase.from("mood_votes").insert({
       mood,
       vote_date: today,
     });
-    setVoting(false);
+
     if (insErr) {
       setError(insErr.message);
-      return;
+      setTodayCounts((prev) => ({
+        ...prev,
+        [mood]: Math.max(0, (prev[mood] ?? 0) - 1),
+      }));
     }
-    await loadData();
   }
 
   const archiveDates = useMemo(() => {
@@ -191,7 +218,7 @@ export default function Home() {
             <button
               key={m}
               type="button"
-              disabled={voting || loading}
+              disabled={loading}
               onClick={() => onVote(m)}
               className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-2.5 text-center text-sm font-medium transition-colors disabled:opacity-50 ${MOOD_META[m].btn}`}
             >
