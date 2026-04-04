@@ -164,18 +164,37 @@ export default function Home() {
     return counts;
   }, []);
 
+  /** Loads real counts from Supabase — RPC first (bypasses broken RLS on aggregates), then raw rows. */
   const loadTodayCounts = useCallback(async () => {
+    const rpc = await supabase.rpc("get_mood_vote_counts_for_day", {
+      p_vote_date: today,
+    });
+
+    if (!rpc.error && Array.isArray(rpc.data)) {
+      const counts: Record<string, number> = { ...emptyCounts };
+      for (const row of rpc.data as { mood: string; vote_count: number | string }[]) {
+        const m = row.mood as string;
+        counts[m] = Number(row.vote_count);
+      }
+      return { error: null, counts };
+    }
+
     const res = await supabase
-      .from("mood_vote_counts_by_day")
-      .select("mood, vote_count")
+      .from("mood_votes")
+      .select("mood")
       .eq("vote_date", today);
 
-    if (res.error) return { error: res.error.message, counts: null };
+    if (res.error) {
+      const rpcHint = rpc.error?.message
+        ? ` (${rpc.error.message})`
+        : "";
+      return { error: res.error.message + rpcHint, counts: null };
+    }
 
     const counts: Record<string, number> = { ...emptyCounts };
     for (const row of res.data ?? []) {
       const m = row.mood as string;
-      counts[m] = Number(row.vote_count);
+      counts[m] = (counts[m] ?? 0) + 1;
     }
     return { error: null, counts };
   }, [today, emptyCounts]);
@@ -287,6 +306,17 @@ export default function Home() {
         ...prev,
         [mood]: Math.max(0, (prev[mood] ?? 0) - 1),
       }));
+      return;
+    }
+
+    const reload = await loadTodayCounts();
+    if (reload.counts) {
+      setTodayCounts(reload.counts);
+      setError(null);
+    } else if (reload.error) {
+      setError(
+        `${reload.error} — your vote may still be saved; try refreshing.`,
+      );
     }
   }
 
