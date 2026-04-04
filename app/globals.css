@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f4ef;
-  --foreground: #1c1917;
+  --background: #f4f1ec;
+  --foreground: #141210;
+  --atmosphere-mid: 32 18% 94%;
+  --atmosphere-edge: 260 12% 88%;
+  --atmosphere-glow: 38 40% 72%;
 }
 
 @theme inline {
@@ -21,4 +24,64 @@ body {
   color: var(--foreground);
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Subtle page atmosphere: mesh + soft vignette (no images) */
+.page-shell {
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% -10%,
+      hsl(var(--atmosphere-glow) / 0.35),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 90% 60% at 100% 100%,
+      hsl(var(--atmosphere-edge) / 0.5),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 0% 90%,
+      hsl(var(--atmosphere-mid) / 0.6),
+      transparent 45%
+    ),
+    linear-gradient(
+      180deg,
+      hsl(var(--atmosphere-mid)) 0%,
+      hsl(30 12% 96%) 100%
+    );
+}
+
+/* Fine grid — reads as “signal” / digital without clutter */
+.page-shell::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.045;
+  background-image:
+    linear-gradient(hsl(0 0% 0%) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(0 0% 0%) 1px, transparent 1px);
+  background-size: 24px 24px;
+  z-index: 0;
+}
+
+@keyframes signal-shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.loading-shimmer {
+  animation: signal-shimmer 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-shimmer {
+    animation: none;
+    opacity: 0.6;
+  }
 }

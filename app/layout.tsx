@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Internet Mood",
-  description: "How is the internet feeling today?",
+  description:
+    "Vote a mood and watch the internet’s collective expression shift — one live globe, one snapshot.",
 };
 
 export default function RootLayout({
