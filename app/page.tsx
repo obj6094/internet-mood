@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MoodGlobe } from "@/components/MoodGlobe";
 import {
-  leadingCommentaryLine,
+  MOOD_PERSONIFICATION_LINES,
+  PERSONIFICATION_LINE_COUNT,
   neutralHeroLine,
 } from "@/lib/moodCommentary";
 import type { Mood } from "@/lib/moods";
@@ -147,6 +155,12 @@ type ArchiveRow = {
   votes: number;
 };
 
+function initialNextPersonificationLineMap(): Record<Mood, number> {
+  const o = {} as Record<Mood, number>;
+  for (const m of MOODS) o[m] = 0;
+  return o;
+}
+
 export default function Home() {
   const today = useMemo(() => formatLocalDate(new Date()), []);
 
@@ -157,6 +171,15 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastVote, setLastVote] = useState<Mood | null>(null);
+  /** Shown line for the current top mood; advances only when that mood becomes #1 again after another mood was #1. */
+  const [topMoodPersonification, setTopMoodPersonification] = useState<{
+    mood: Mood;
+    lineIndex: number;
+  } | null>(null);
+  const prevTopMoodRef = useRef<Mood | undefined>(undefined);
+  const nextPersonificationLineForMoodRef = useRef<Record<Mood, number>>(
+    initialNextPersonificationLineMap(),
+  );
 
   const emptyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -277,12 +300,24 @@ export default function Home() {
     return leader ?? ("neutral" as const);
   }, [loading, totalToday, leader]);
 
-  const heroCommentary = useMemo(() => {
-    if (loading) return "";
-    if (totalToday === 0) return neutralHeroLine(today);
-    if (leader) return leadingCommentaryLine(leader, today);
-    return "";
-  }, [loading, totalToday, leader, today]);
+  useLayoutEffect(() => {
+    if (loading || totalToday === 0 || !leader) {
+      if (totalToday === 0) {
+        prevTopMoodRef.current = undefined;
+        setTopMoodPersonification(null);
+      }
+      return;
+    }
+    if (prevTopMoodRef.current === leader) return;
+
+    const idx = nextPersonificationLineForMoodRef.current[leader];
+    setTopMoodPersonification({ mood: leader, lineIndex: idx });
+    nextPersonificationLineForMoodRef.current = {
+      ...nextPersonificationLineForMoodRef.current,
+      [leader]: (idx + 1) % PERSONIFICATION_LINE_COUNT,
+    };
+    prevTopMoodRef.current = leader;
+  }, [leader, loading, totalToday]);
 
   async function onVote(mood: Mood) {
     if (loading) return;
@@ -324,7 +359,8 @@ export default function Home() {
     return [...archiveByDate.keys()]
       .filter((d) => d !== today)
       .sort()
-      .reverse();
+      .reverse()
+      .slice(0, 7);
   }, [archiveByDate, today]);
 
   const shellStyle = useMemo(() => {
@@ -371,7 +407,7 @@ export default function Home() {
                   <span className="text-stone-600">unwritten</span>.
                 </h1>
                 <p className="text-pretty text-base leading-relaxed text-stone-600 sm:text-[1.05rem]">
-                  {heroCommentary}
+                  {neutralHeroLine(today)}
                 </p>
                 <p className="text-pretty text-sm leading-relaxed text-stone-500">
                   Tap a mood below — your vote becomes part of the live
@@ -381,24 +417,36 @@ export default function Home() {
             ) : (
               <div className="w-full max-w-xl space-y-3 text-center sm:text-left">
                 <p className="text-sm font-medium text-stone-500 sm:text-base">
-                  Right now, the internet reads mostly
+                  Right now, the internet feels
                 </p>
                 <h1 className="text-balance bg-gradient-to-br from-stone-900 via-stone-800 to-stone-700 bg-clip-text text-[1.85rem] font-semibold leading-[1.1] tracking-tight text-transparent sm:text-[2.35rem]">
                   {leader ?? "—"}
                 </h1>
-                <p className="max-w-[34rem] text-pretty text-base leading-relaxed text-stone-700 sm:text-[1.05rem]">
-                  {heroCommentary}
-                </p>
+                {leader &&
+                topMoodPersonification &&
+                topMoodPersonification.mood === leader ? (
+                  <p
+                    className="min-h-[4.75rem] max-w-[34rem] text-pretty text-base leading-relaxed text-stone-700 sm:min-h-[4.25rem] sm:text-[1.05rem]"
+                  >
+                    {
+                      MOOD_PERSONIFICATION_LINES[leader][
+                        topMoodPersonification.lineIndex
+                      ]
+                    }
+                  </p>
+                ) : null}
                 {leader ? (
                   <p className="font-mono text-sm tabular-nums text-stone-600 sm:text-base">
                     <span className="font-semibold text-stone-800">
+                      {totalToday} votes
+                    </span>
+                    <span className="text-stone-400"> · </span>
+                    <span>
                       {Math.round(
                         ((todayCounts[leader] ?? 0) / totalToday) * 1000,
                       ) / 10}
-                      %
+                      % today
                     </span>
-                    <span className="text-stone-400"> · </span>
-                    <span>{totalToday} votes today</span>
                   </p>
                 ) : null}
               </div>
@@ -445,7 +493,7 @@ export default function Home() {
               )}
             </div>
             <p className="mt-2 text-center text-[0.65rem] font-medium uppercase tracking-[0.18em] text-stone-400 sm:text-left">
-              Live mix · today
+              Today&apos;s mood mix
             </p>
           </div>
         </header>
@@ -453,7 +501,7 @@ export default function Home() {
         {/* Vote — globe mood tiles */}
         <section aria-label="Cast your mood vote" className="space-y-3">
           <h2 className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-stone-500 sm:text-left">
-            Add your signal
+            How are you feeling today?
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-3">
             {MOODS.map((m) => {
@@ -497,10 +545,8 @@ export default function Home() {
                 decorative
               />
               <span>
-                Your{" "}
-                <span className="font-semibold text-stone-900">{lastVote}</span>{" "}
-                signal is live — you&apos;re part of today&apos;s collective
-                mood.
+                You&apos;re feeling {lastVote.toLowerCase()}. You&apos;re now
+                part of today&apos;s internet mood.
               </span>
             </p>
           </div>
@@ -508,7 +554,7 @@ export default function Home() {
 
         <section className="space-y-5 border-t border-stone-400/20 pt-10">
           <h2 className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-stone-500 sm:text-left">
-            Today&apos;s snapshot
+            Today&apos;s Internet Mood
           </h2>
 
           {loading ? (
@@ -519,7 +565,7 @@ export default function Home() {
                 className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-md ring-2 sm:p-6 ${MOOD_META[leader].spotlight}`}
               >
                 <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                  Leading mood
+                  Top mood
                 </p>
                 <div className="mt-3 flex items-center gap-4">
                   <MoodGlobe mood={leader} size="tile" />
@@ -528,10 +574,11 @@ export default function Home() {
                       {leader}
                     </p>
                     <p className="mt-1 font-mono text-sm tabular-nums text-stone-600">
+                      {todayCounts[leader] ?? 0} votes ·{" "}
                       {Math.round(
                         ((todayCounts[leader] ?? 0) / totalToday) * 1000,
                       ) / 10}
-                      % of today · {todayCounts[leader] ?? 0} votes
+                      % today
                     </p>
                   </div>
                 </div>

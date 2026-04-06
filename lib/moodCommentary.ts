@@ -1,48 +1,74 @@
 import type { Mood } from "@/lib/moods";
 
-/** Curated lines per leading mood — light, brand-safe, not copy-pasted from examples. */
-export const LEADING_MOOD_COMMENTARY: Record<Mood, readonly string[]> = {
+/** Exactly 6 lines per mood, in display order (cycle 0→5). */
+export const MOOD_PERSONIFICATION_LINES: Record<Mood, readonly [string, string, string, string, string, string]> = {
   Happy: [
-    "The internet seems unusually upbeat today — maybe something went right.",
-    "A warmer vibe than usual; the crowd’s leaning cheerful.",
-    "There’s a little extra light in the feed today.",
+    "The internet looks happy today. It’s nice to see it smiling.",
+    "What made the internet this cheerful today?",
+    "The internet seems to be in a good mood.",
+    "A happy internet is a lovely thing to see.",
+    "Something seems to have brightened the internet today.",
+    "The internet is smiling today. Maybe something good happened.",
   ],
   Sad: [
-    "The mood’s a bit heavy out there — empathy’s not a bad instinct.",
-    "Today’s signal skews melancholy; gentleness helps.",
-    "Something feels tender in the collective tone.",
+    "The internet feels a little sad today. What happened?",
+    "A sad internet makes the whole day feel softer.",
+    "The internet looks down today. Be gentle with it.",
+    "Something must have weighed on the internet today.",
+    "The internet seems a bit blue today.",
+    "It’s a sad internet today. Maybe it just needs a moment.",
   ],
   Angry: [
-    "Tension’s showing up in the mix — the internet’s a little on edge.",
-    "Short fuses in the signal today; pace yourself online.",
-    "The crowd reads irritable; maybe step back before you pile on.",
+    "The internet is angry today. What set it off?",
+    "A grumpy internet is making some noise today.",
+    "The internet seems tense today. Maybe it needs to cool down.",
+    "Something clearly annoyed the internet today.",
+    "The internet is in a fiery mood today.",
+    "An angry internet can be loud. Let’s hope it settles soon.",
   ],
   Anxious: [
-    "A restless undertone today — lots of nerves in the noise.",
-    "Something feels unsettled in the airwaves.",
-    "The signal’s jittery; breathe before you scroll.",
+    "The internet seems nervous today. Deep breaths.",
+    "The internet is feeling anxious today. Let’s be kind to it.",
+    "Something has the internet on edge today.",
+    "The internet is trembling a little today.",
+    "An uneasy mood is spreading across the internet today.",
+    "The internet feels tense today. Maybe it needs a moment to breathe.",
   ],
   Tired: [
-    "Collective energy’s low — looks like the internet needs rest.",
-    "A sleepy majority; nobody’s running on a full battery.",
-    "The vibe says ‘one more tab and I’m done.’",
+    "The internet looks tired today. Maybe it needs a nap.",
+    "A sleepy internet is drifting through the day.",
+    "The internet seems worn out today.",
+    "It’s a tired internet today. Let it rest a little.",
+    "The internet is moving a little slowly today.",
+    "Looks like the internet could use some extra sleep today.",
   ],
   Excited: [
-    "Buzz is up — something has people wired today.",
-    "There’s electricity in the signal; momentum’s real.",
-    "The crowd’s animated; news or novelty might be moving the needle.",
+    "The internet is excited today. Something’s in the air.",
+    "A buzzing internet is always fun to see.",
+    "The internet seems full of energy today.",
+    "Something has the internet glowing with excitement today.",
+    "The internet is wide awake and thrilled today.",
+    "An excited internet makes everything feel a little brighter.",
   ],
   Numb: [
-    "Flat affect wins today — feelings dialed way down.",
-    "The signal’s oddly quiet, like a muted room.",
-    "Not much emotional color in the mix; more static than spark.",
+    "The internet feels strangely numb today.",
+    "A quiet, distant mood is hanging over the internet today.",
+    "The internet seems emotionally flat today.",
+    "Something about the internet feels muted today.",
+    "The internet looks a little disconnected today.",
+    "It’s a numb kind of day online.",
   ],
   Calm: [
-    "Unusually steady waters — the internet feels composed today.",
-    "A softer baseline than usual; less noise, more pause.",
-    "The crowd’s reading relaxed; rare and nice when it lands.",
+    "The internet feels calm today. That’s rare and lovely.",
+    "A peaceful internet is a nice surprise.",
+    "The internet seems unusually relaxed today.",
+    "Everything feels softer when the internet is calm.",
+    "The internet is at ease today. Let’s enjoy it.",
+    "It’s a calm day online. Peace looks good on the internet.",
   ],
 };
+
+export const PERSONIFICATION_LINE_COUNT = 6;
 
 export const NEUTRAL_HERO_LINES = [
   "The globe’s still listening — first votes paint the picture.",
@@ -54,12 +80,6 @@ function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) | 0;
   return Math.abs(h);
-}
-
-/** Stable line for the day + mood (changes with date or mood, not every render). */
-export function leadingCommentaryLine(mood: Mood, dateKey: string): string {
-  const lines = LEADING_MOOD_COMMENTARY[mood];
-  return lines[hashString(`${dateKey}:${mood}`) % lines.length];
 }
 
 export function neutralHeroLine(dateKey: string): string {
