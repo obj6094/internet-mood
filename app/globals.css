@@ -11,8 +11,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 html {
@@ -26,7 +26,6 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-/* Subtle page atmosphere: mesh + soft vignette (no images) */
 .page-shell {
   background:
     radial-gradient(
@@ -51,7 +50,7 @@ body {
     );
 }
 
-/* Fine grid — reads as “signal” / digital without clutter */
+/* Fine grid adds a subtle signal texture without clutter. */
 .page-shell::before {
   content: "";
   pointer-events: none;

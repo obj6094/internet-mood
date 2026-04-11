@@ -4,8 +4,6 @@ export const MOODS = [
   "Angry",
   "Anxious",
   "Tired",
-  "Excited",
-  "Numb",
   "Calm",
 ] as const;
 

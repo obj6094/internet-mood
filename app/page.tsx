@@ -1,24 +1,27 @@
-"use client";
+﻿"use client";
 
+import type { CSSProperties } from "react";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { MoodGlobe } from "@/components/MoodGlobe";
+import {
+  MoodGlobe,
+  createMoodGlobeFaviconDataUrl,
+} from "@/components/MoodGlobe";
 import {
   MOOD_PERSONIFICATION_LINES,
   PERSONIFICATION_LINE_COUNT,
   neutralHeroLine,
 } from "@/lib/moodCommentary";
-import type { Mood } from "@/lib/moods";
-import { MOODS } from "@/lib/moods";
+import { MOODS, type Mood } from "@/lib/moods";
 import { supabase } from "@/lib/supabase";
 
-/** Hue + tokens for atmosphere, tiles, signal strip, spotlight */
+const EASTERN_TIME_ZONE = "America/New_York";
+
 const MOOD_META: Record<
   Mood,
   {
@@ -30,91 +33,84 @@ const MOOD_META: Record<
   }
 > = {
   Happy: {
-    glow: "38 92% 54%",
+    glow: "42 78% 60%",
     tile:
-      "border-amber-200/90 bg-gradient-to-br from-amber-50 to-amber-100/80 text-amber-950 shadow-amber-900/5 hover:border-amber-300 hover:shadow-md hover:shadow-amber-900/10",
-    strip: "bg-amber-400",
-    bar: "bg-amber-500",
+      "border-[#E9B949]/45 bg-gradient-to-br from-[#E9B949]/14 to-[#E9B949]/24 text-stone-900 shadow-black/5 hover:border-[#E9B949]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#E9B949]",
+    bar: "bg-[#E9B949]",
     spotlight:
-      "from-amber-50 to-amber-100/90 border-amber-200/80 ring-amber-400/25",
+      "from-[#F2E08A] to-[#D4A832] border-[#C9A038] ring-[#E9B949]/45",
   },
   Sad: {
-    glow: "210 70% 52%",
+    glow: "212 82% 58%",
     tile:
-      "border-sky-200/90 bg-gradient-to-br from-sky-50 to-sky-100/80 text-sky-950 shadow-sky-900/5 hover:border-sky-300 hover:shadow-md hover:shadow-sky-900/10",
-    strip: "bg-sky-400",
-    bar: "bg-sky-500",
+      "border-[#3D94E8]/45 bg-gradient-to-br from-[#3D94E8]/14 to-[#3D94E8]/24 text-stone-900 shadow-black/5 hover:border-[#3D94E8]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#3D94E8]",
+    bar: "bg-[#3D94E8]",
     spotlight:
-      "from-sky-50 to-sky-100/90 border-sky-200/80 ring-sky-400/25",
+      "from-[#6CB0F0] to-[#2E7FD4] border-[#2B6FC4] ring-[#3D94E8]/45",
   },
   Angry: {
-    glow: "350 80% 58%",
+    glow: "0 70% 62%",
     tile:
-      "border-rose-200/90 bg-gradient-to-br from-rose-50 to-rose-100/80 text-rose-950 shadow-rose-900/5 hover:border-rose-300 hover:shadow-md hover:shadow-rose-900/10",
-    strip: "bg-rose-400",
-    bar: "bg-rose-500",
+      "border-[#E35A5A]/45 bg-gradient-to-br from-[#E35A5A]/14 to-[#E35A5A]/24 text-stone-900 shadow-black/5 hover:border-[#E35A5A]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#E35A5A]",
+    bar: "bg-[#E35A5A]",
     spotlight:
-      "from-rose-50 to-rose-100/90 border-rose-200/80 ring-rose-400/25",
+      "from-[#F08080] to-[#D04040] border-[#C03838] ring-[#E35A5A]/45",
   },
   Anxious: {
-    glow: "265 75% 58%",
+    glow: "292 62% 72%",
     tile:
-      "border-violet-200/90 bg-gradient-to-br from-violet-50 to-violet-100/80 text-violet-950 shadow-violet-900/5 hover:border-violet-300 hover:shadow-md hover:shadow-violet-900/10",
-    strip: "bg-violet-400",
-    bar: "bg-violet-500",
+      "border-[#D090E0]/45 bg-gradient-to-br from-[#D090E0]/14 to-[#D090E0]/24 text-stone-900 shadow-black/5 hover:border-[#D090E0]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#D090E0]",
+    bar: "bg-[#D090E0]",
     spotlight:
-      "from-violet-50 to-violet-100/90 border-violet-200/80 ring-violet-400/25",
+      "from-[#E0B0F0] to-[#B870D0] border-[#A860C0] ring-[#D090E0]/45",
   },
   Tired: {
-    glow: "245 55% 52%",
+    glow: "234 16% 54%",
     tile:
-      "border-indigo-200/90 bg-gradient-to-br from-indigo-50 to-indigo-100/80 text-indigo-950 shadow-indigo-900/5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-900/10",
-    strip: "bg-indigo-400",
-    bar: "bg-indigo-500",
+      "border-[#7C7F98]/45 bg-gradient-to-br from-[#7C7F98]/14 to-[#7C7F98]/24 text-stone-900 shadow-black/5 hover:border-[#7C7F98]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#7C7F98]",
+    bar: "bg-[#7C7F98]",
     spotlight:
-      "from-indigo-50 to-indigo-100/90 border-indigo-200/80 ring-indigo-400/25",
-  },
-  Excited: {
-    glow: "310 85% 58%",
-    tile:
-      "border-fuchsia-200/90 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/80 text-fuchsia-950 shadow-fuchsia-900/5 hover:border-fuchsia-300 hover:shadow-md hover:shadow-fuchsia-900/10",
-    strip: "bg-fuchsia-400",
-    bar: "bg-fuchsia-500",
-    spotlight:
-      "from-fuchsia-50 to-fuchsia-100/90 border-fuchsia-200/80 ring-fuchsia-400/25",
-  },
-  Numb: {
-    glow: "220 12% 58%",
-    tile:
-      "border-zinc-300/90 bg-gradient-to-br from-zinc-100 to-zinc-200/70 text-zinc-900 shadow-zinc-900/5 hover:border-zinc-400 hover:shadow-md hover:shadow-zinc-900/10",
-    strip: "bg-zinc-400",
-    bar: "bg-zinc-500",
-    spotlight:
-      "from-zinc-100 to-zinc-200/90 border-zinc-300/80 ring-zinc-400/20",
+      "from-[#9A9DB5] to-[#65687E] border-[#5A5D72] ring-[#7C7F98]/45",
   },
   Calm: {
-    glow: "155 55% 42%",
+    glow: "152 44% 55%",
     tile:
-      "border-emerald-200/90 bg-gradient-to-br from-emerald-50 to-emerald-100/80 text-emerald-950 shadow-emerald-900/5 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-900/10",
-    strip: "bg-emerald-400",
-    bar: "bg-emerald-500",
+      "border-[#5BBF8A]/45 bg-gradient-to-br from-[#5BBF8A]/14 to-[#5BBF8A]/24 text-stone-900 shadow-black/5 hover:border-[#5BBF8A]/80 hover:shadow-md hover:shadow-black/10",
+    strip: "bg-[#5BBF8A]",
+    bar: "bg-[#5BBF8A]",
     spotlight:
-      "from-emerald-50 to-emerald-100/90 border-emerald-200/80 ring-emerald-400/25",
+      "from-[#7AD4A8] to-[#4AA876] border-[#3F9668] ring-[#5BBF8A]/45",
   },
 };
 
-function formatLocalDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function formatEasternIsoDate(d: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: EASTERN_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
 }
 
 function formatDateSpoken(isoDate: string): string {
   const [y, mo, d] = isoDate.slice(0, 10).split("-").map(Number);
   if (!y || !mo || !d) return isoDate;
-  const date = new Date(y, mo - 1, d);
+
+  const date = new Date(Date.UTC(y, mo - 1, d, 12));
   return date.toLocaleDateString("en-US", {
+    timeZone: EASTERN_TIME_ZONE,
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -124,8 +120,10 @@ function formatDateSpoken(isoDate: string): string {
 function formatTodayLabel(iso: string): string {
   const [y, mo, d] = iso.slice(0, 10).split("-").map(Number);
   if (!y || !mo || !d) return iso;
-  const date = new Date(y, mo - 1, d);
+
+  const date = new Date(Date.UTC(y, mo - 1, d, 12));
   return date.toLocaleDateString("en-US", {
+    timeZone: EASTERN_TIME_ZONE,
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -137,15 +135,18 @@ function leadingMoodFor(
   total: number,
 ): Mood | null {
   if (total <= 0) return null;
+
   let best: Mood | null = null;
   let bestCount = -1;
-  for (const m of MOODS) {
-    const c = counts[m] ?? 0;
-    if (c > bestCount) {
-      bestCount = c;
-      best = m;
+
+  for (const mood of MOODS) {
+    const count = counts[mood] ?? 0;
+    if (count > bestCount) {
+      bestCount = count;
+      best = mood;
     }
   }
+
   return best;
 }
 
@@ -156,13 +157,13 @@ type ArchiveRow = {
 };
 
 function initialNextPersonificationLineMap(): Record<Mood, number> {
-  const o = {} as Record<Mood, number>;
-  for (const m of MOODS) o[m] = 0;
-  return o;
+  const result = {} as Record<Mood, number>;
+  for (const mood of MOODS) result[mood] = 0;
+  return result;
 }
 
 export default function Home() {
-  const today = useMemo(() => formatLocalDate(new Date()), []);
+  const today = useMemo(() => formatEasternIsoDate(new Date()), []);
 
   const [todayCounts, setTodayCounts] = useState<Record<string, number>>({});
   const [archiveByDate, setArchiveByDate] = useState<
@@ -171,11 +172,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastVote, setLastVote] = useState<Mood | null>(null);
-  /** Shown line for the current top mood; advances only when that mood becomes #1 again after another mood was #1. */
   const [topMoodPersonification, setTopMoodPersonification] = useState<{
     mood: Mood;
     lineIndex: number;
   } | null>(null);
+
   const prevTopMoodRef = useRef<Mood | undefined>(undefined);
   const nextPersonificationLineForMoodRef = useRef<Record<Mood, number>>(
     initialNextPersonificationLineMap(),
@@ -183,11 +184,34 @@ export default function Home() {
 
   const emptyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const m of MOODS) counts[m] = 0;
+    for (const mood of MOODS) counts[mood] = 0;
     return counts;
   }, []);
 
-  /** Loads real counts from Supabase — RPC first (bypasses broken RLS on aggregates), then raw rows. */
+  const syncTopMoodPersonification = useCallback(
+    (counts: Record<string, number>) => {
+      const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+      const nextLeader = leadingMoodFor(counts, total);
+
+      if (total === 0 || !nextLeader) {
+        prevTopMoodRef.current = undefined;
+        setTopMoodPersonification(null);
+        return;
+      }
+
+      if (prevTopMoodRef.current === nextLeader) return;
+
+      const index = nextPersonificationLineForMoodRef.current[nextLeader];
+      setTopMoodPersonification({ mood: nextLeader, lineIndex: index });
+      nextPersonificationLineForMoodRef.current = {
+        ...nextPersonificationLineForMoodRef.current,
+        [nextLeader]: (index + 1) % PERSONIFICATION_LINE_COUNT,
+      };
+      prevTopMoodRef.current = nextLeader;
+    },
+    [],
+  );
+
   const loadTodayCounts = useCallback(async () => {
     const rpc = await supabase.rpc("get_mood_vote_counts_for_day", {
       p_vote_date: today,
@@ -195,9 +219,11 @@ export default function Home() {
 
     if (!rpc.error && Array.isArray(rpc.data)) {
       const counts: Record<string, number> = { ...emptyCounts };
-      for (const row of rpc.data as { mood: string; vote_count: number | string }[]) {
-        const m = row.mood as string;
-        counts[m] = Number(row.vote_count);
+      for (const row of rpc.data as {
+        mood: string;
+        vote_count: number | string;
+      }[]) {
+        counts[row.mood] = Number(row.vote_count);
       }
       return { error: null, counts };
     }
@@ -208,19 +234,17 @@ export default function Home() {
       .eq("vote_date", today);
 
     if (res.error) {
-      const rpcHint = rpc.error?.message
-        ? ` (${rpc.error.message})`
-        : "";
+      const rpcHint = rpc.error?.message ? ` (${rpc.error.message})` : "";
       return { error: res.error.message + rpcHint, counts: null };
     }
 
     const counts: Record<string, number> = { ...emptyCounts };
     for (const row of res.data ?? []) {
-      const m = row.mood as string;
-      counts[m] = (counts[m] ?? 0) + 1;
+      counts[row.mood as string] = (counts[row.mood as string] ?? 0) + 1;
     }
+
     return { error: null, counts };
-  }, [today, emptyCounts]);
+  }, [emptyCounts, today]);
 
   const loadArchive = useCallback(async () => {
     const archRes = await supabase
@@ -232,20 +256,22 @@ export default function Home() {
 
     const map = new Map<string, ArchiveRow[]>();
     for (const row of archRes.data ?? []) {
-      const d = String(row.vote_date).slice(0, 10);
-      const list = map.get(d) ?? [];
+      const date = String(row.vote_date).slice(0, 10);
+      const list = map.get(date) ?? [];
       list.push({
-        vote_date: d,
+        vote_date: date,
         mood: row.mood,
         votes: row.votes,
       });
-      map.set(d, list);
+      map.set(date, list);
     }
+
     return { error: null, map };
   }, []);
 
   const loadInitial = useCallback(async () => {
     setLoading(true);
+
     const [todayRes, archRes] = await Promise.all([
       loadTodayCounts(),
       loadArchive(),
@@ -256,6 +282,7 @@ export default function Home() {
       setLoading(false);
       return;
     }
+
     if (archRes.error) {
       setError(archRes.error);
       setLoading(false);
@@ -263,16 +290,19 @@ export default function Home() {
     }
 
     setError(null);
-    setTodayCounts(todayRes.counts!);
-    setArchiveByDate(archRes.map!);
+    const counts = todayRes.counts ?? {};
+    setTodayCounts(counts);
+    syncTopMoodPersonification(counts);
+    setArchiveByDate(archRes.map ?? new Map());
     setLoading(false);
-  }, [loadTodayCounts, loadArchive]);
+  }, [loadArchive, loadTodayCounts, syncTopMoodPersonification]);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timeout = setTimeout(() => {
       void loadInitial();
     }, 0);
-    return () => clearTimeout(t);
+
+    return () => clearTimeout(timeout);
   }, [loadInitial]);
 
   const totalToday = useMemo(
@@ -287,100 +317,95 @@ export default function Home() {
 
   const sortedForStrip = useMemo(() => {
     return [...MOODS].sort((a, b) => {
-      const ca = todayCounts[a] ?? 0;
-      const cb = todayCounts[b] ?? 0;
-      if (cb !== ca) return cb - ca;
+      const countA = todayCounts[a] ?? 0;
+      const countB = todayCounts[b] ?? 0;
+      if (countB !== countA) return countB - countA;
       return MOODS.indexOf(a) - MOODS.indexOf(b);
     });
   }, [todayCounts]);
 
   const heroGlobeMood = useMemo(() => {
-    if (loading) return "neutral" as const;
-    if (totalToday === 0) return "neutral" as const;
-    return leader ?? ("neutral" as const);
-  }, [loading, totalToday, leader]);
-
-  useLayoutEffect(() => {
-    if (loading || totalToday === 0 || !leader) {
-      if (totalToday === 0) {
-        prevTopMoodRef.current = undefined;
-        setTopMoodPersonification(null);
-      }
-      return;
-    }
-    if (prevTopMoodRef.current === leader) return;
-
-    const idx = nextPersonificationLineForMoodRef.current[leader];
-    setTopMoodPersonification({ mood: leader, lineIndex: idx });
-    nextPersonificationLineForMoodRef.current = {
-      ...nextPersonificationLineForMoodRef.current,
-      [leader]: (idx + 1) % PERSONIFICATION_LINE_COUNT,
-    };
-    prevTopMoodRef.current = leader;
+    if (loading || totalToday === 0) return "neutral";
+    return leader ?? "neutral";
   }, [leader, loading, totalToday]);
+
+  useEffect(() => {
+    const faviconHref = createMoodGlobeFaviconDataUrl(heroGlobeMood);
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+
+    link.type = "image/svg+xml";
+    link.href = faviconHref;
+  }, [heroGlobeMood]);
 
   async function onVote(mood: Mood) {
     if (loading) return;
+
     setError(null);
     setLastVote(mood);
+    const optimisticCounts = {
+      ...todayCounts,
+      [mood]: (todayCounts[mood] ?? 0) + 1,
+    };
+    setTodayCounts(optimisticCounts);
+    syncTopMoodPersonification(optimisticCounts);
 
-    setTodayCounts((prev) => ({
-      ...prev,
-      [mood]: (prev[mood] ?? 0) + 1,
-    }));
-
-    const { error: insErr } = await supabase.from("mood_votes").insert({
+    const { error: insertError } = await supabase.from("mood_votes").insert({
       mood,
       vote_date: today,
     });
 
-    if (insErr) {
-      setError(insErr.message);
+    if (insertError) {
+      setError(insertError.message);
       setLastVote(null);
-      setTodayCounts((prev) => ({
-        ...prev,
-        [mood]: Math.max(0, (prev[mood] ?? 0) - 1),
-      }));
+      const revertedCounts = {
+        ...optimisticCounts,
+        [mood]: Math.max(0, (optimisticCounts[mood] ?? 0) - 1),
+      };
+      setTodayCounts(revertedCounts);
+      syncTopMoodPersonification(revertedCounts);
       return;
     }
 
     const reload = await loadTodayCounts();
     if (reload.counts) {
       setTodayCounts(reload.counts);
+      syncTopMoodPersonification(reload.counts);
       setError(null);
     } else if (reload.error) {
       setError(
-        `${reload.error} — your vote may still be saved; try refreshing.`,
+        `${reload.error} Your vote may still be saved; try refreshing.`,
       );
     }
   }
 
   const archiveDates = useMemo(() => {
     return [...archiveByDate.keys()]
-      .filter((d) => d !== today)
+      .filter((date) => date !== today)
       .sort()
       .reverse()
       .slice(0, 7);
   }, [archiveByDate, today]);
 
   const shellStyle = useMemo(() => {
-    const g = leader ? MOOD_META[leader].glow : "32 18% 72%";
+    const glow = leader ? MOOD_META[leader].glow : "32 18% 72%";
     return {
-      "--atmosphere-glow": g,
-    } as React.CSSProperties;
+      "--atmosphere-glow": glow,
+    } as CSSProperties;
   }, [leader]);
 
   return (
-    <div
-      className="page-shell relative z-10 min-h-full"
-      style={shellStyle}
-    >
+    <div className="page-shell relative z-10 min-h-full" style={shellStyle}>
       <div className="relative z-10 mx-auto flex max-w-lg flex-col gap-10 px-4 py-10 pb-20 sm:gap-12 sm:py-14">
-        {/* Hero — globe centerpiece */}
         <header className="space-y-6">
           <p className="text-center text-[0.7rem] font-medium uppercase tracking-[0.2em] text-stone-500 sm:text-left sm:text-xs">
-            Internet mood ·{" "}
-            <time dateTime={today}>{formatTodayLabel(today)}</time>
+            Internet mood · <time dateTime={today}>{formatTodayLabel(today)}</time>{" "}
+            · ET
           </p>
 
           <div className="flex flex-col items-center gap-5 sm:gap-6">
@@ -410,7 +435,7 @@ export default function Home() {
                   {neutralHeroLine(today)}
                 </p>
                 <p className="text-pretty text-sm leading-relaxed text-stone-500">
-                  Tap a mood below — your vote becomes part of the live
+                  Tap a mood below and your vote becomes part of the live
                   snapshot.
                 </p>
               </div>
@@ -419,15 +444,13 @@ export default function Home() {
                 <p className="text-sm font-medium text-stone-500 sm:text-base">
                   Right now, the internet feels
                 </p>
-                <h1 className="text-balance bg-gradient-to-br from-stone-900 via-stone-800 to-stone-700 bg-clip-text text-[1.85rem] font-semibold leading-[1.1] tracking-tight text-transparent sm:text-[2.35rem]">
-                  {leader ?? "—"}
+                <h1 className="block max-w-full pb-1 text-balance bg-gradient-to-br from-stone-950 via-stone-900 to-stone-700 bg-clip-text text-[1.9rem] font-black leading-[1.12] tracking-[-0.015em] text-transparent drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] sm:text-[2.6rem]">
+                  {leader ?? "-"}
                 </h1>
                 {leader &&
                 topMoodPersonification &&
                 topMoodPersonification.mood === leader ? (
-                  <p
-                    className="min-h-[4.75rem] max-w-[34rem] text-pretty text-base leading-relaxed text-stone-700 sm:min-h-[4.25rem] sm:text-[1.05rem]"
-                  >
+                  <p className="min-h-[4.75rem] max-w-[34rem] text-pretty text-base leading-relaxed text-stone-700 sm:min-h-[4.25rem] sm:text-[1.05rem]">
                     {
                       MOOD_PERSONIFICATION_LINES[leader][
                         topMoodPersonification.lineIndex
@@ -453,7 +476,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* Signal strip */}
           <div
             className="pt-1"
             role="img"
@@ -469,24 +491,21 @@ export default function Home() {
               {loading ? (
                 <div className="loading-shimmer h-full w-full bg-stone-300/60" />
               ) : totalToday === 0 ? (
-                MOODS.map((m) => (
+                MOODS.map((mood) => (
                   <div
-                    key={m}
-                    className={`min-w-px flex-1 ${MOOD_META[m].strip} opacity-[0.18]`}
+                    key={mood}
+                    className={`min-w-px flex-1 ${MOOD_META[mood].strip} opacity-[0.18]`}
                   />
                 ))
               ) : (
-                sortedForStrip.map((m) => {
-                  const c = todayCounts[m] ?? 0;
-                  const flex = Math.max(c, 0);
+                sortedForStrip.map((mood) => {
+                  const count = todayCounts[mood] ?? 0;
                   return (
                     <div
-                      key={m}
-                      className={`min-w-0 ${MOOD_META[m].strip} motion-safe:transition-[flex-grow] motion-safe:duration-500 motion-safe:ease-out`}
-                      style={{
-                        flex: flex,
-                      }}
-                      title={`${m}: ${c}`}
+                      key={mood}
+                      className={`min-w-0 ${MOOD_META[mood].strip} motion-safe:transition-[flex-grow] motion-safe:duration-500 motion-safe:ease-out`}
+                      style={{ flex: Math.max(count, 0) }}
+                      title={`${mood}: ${count}`}
                     />
                   );
                 })
@@ -498,32 +517,27 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Vote — globe mood tiles */}
         <section aria-label="Cast your mood vote" className="space-y-3">
           <h2 className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-stone-500 sm:text-left">
             How are you feeling today?
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-3">
-            {MOODS.map((m) => {
-              const isLast = lastVote === m;
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3">
+            {MOODS.map((mood) => {
+              const isLast = lastVote === mood;
               return (
                 <button
-                  key={m}
+                  key={mood}
                   type="button"
                   disabled={loading}
-                  onClick={() => onVote(m)}
-                  className={`motion-safe:duration-200 motion-safe:ease-out flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center text-sm font-semibold shadow-sm transition-[transform,box-shadow,border-color] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 motion-reduce:transition-none sm:min-h-[5.5rem] ${MOOD_META[m].tile} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f4f1ec] ${
+                  onClick={() => onVote(mood)}
+                  className={`motion-safe:duration-200 motion-safe:ease-out flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center text-sm font-semibold shadow-sm transition-[transform,box-shadow,border-color] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 motion-reduce:transition-none sm:min-h-[5.5rem] ${MOOD_META[mood].tile} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f4f1ec] ${
                     isLast
                       ? "ring-2 ring-stone-500/35 ring-offset-2 ring-offset-[#f4f1ec]"
                       : ""
                   }`}
                 >
-                  <MoodGlobe
-                    mood={m}
-                    size="icon"
-                    title={`Vote ${m}`}
-                  />
-                  <span className="leading-tight tracking-tight">{m}</span>
+                  <MoodGlobe mood={mood} size="icon" title={`Vote ${mood}`} />
+                  <span className="leading-tight tracking-tight">{mood}</span>
                 </button>
               );
             })}
@@ -584,16 +598,17 @@ export default function Home() {
                 </div>
               </div>
 
-              <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-2">
-                {sortedForStrip.map((m) => {
-                  const c = todayCounts[m] ?? 0;
+              <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {sortedForStrip.map((mood) => {
+                  const count = todayCounts[mood] ?? 0;
                   const pct =
                     totalToday > 0
-                      ? Math.round((c / totalToday) * 1000) / 10
+                      ? Math.round((count / totalToday) * 1000) / 10
                       : 0;
-                  const isLead = m === leader && c > 0;
+                  const isLead = mood === leader && count > 0;
+
                   return (
-                    <li key={m}>
+                    <li key={mood}>
                       <div
                         className={`flex h-full flex-col rounded-xl border bg-white/50 px-3 py-2.5 shadow-sm backdrop-blur-sm ${
                           isLead
@@ -603,26 +618,26 @@ export default function Home() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <MoodGlobe
-                            mood={m}
+                            mood={mood}
                             size="icon"
                             className="!h-9 !w-9"
                             decorative
                           />
                           <span className="truncate text-right text-xs font-semibold text-stone-800">
-                            {m}
+                            {mood}
                           </span>
                         </div>
                         <div className="mt-2 flex items-baseline justify-between gap-2 font-mono text-[0.7rem] tabular-nums text-stone-500 sm:text-xs">
                           <span className="font-semibold text-stone-800">
-                            {c}
+                            {count}
                           </span>
                           <span>{pct}%</span>
                         </div>
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200/90">
                           <div
-                            className={`h-full rounded-full ${MOOD_META[m].bar} motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out`}
+                            className={`h-full rounded-full ${MOOD_META[mood].bar} motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out`}
                             style={{
-                              width: `${totalToday > 0 ? Math.max(6, (c / totalToday) * 100) : 0}%`,
+                              width: `${totalToday > 0 ? Math.max(6, (count / totalToday) * 100) : 0}%`,
                             }}
                           />
                         </div>
@@ -634,7 +649,7 @@ export default function Home() {
             </>
           ) : (
             <p className="text-sm leading-relaxed text-stone-600">
-              Once people vote, you&apos;ll see a full breakdown here — who&apos;s
+              Once people vote, you&apos;ll see a full breakdown here: who&apos;s
               ahead, and how the mix shifts.
             </p>
           )}
@@ -646,7 +661,7 @@ export default function Home() {
           </h2>
           {archiveDates.length === 0 ? (
             <p className="text-sm leading-relaxed text-stone-600">
-              No earlier days yet — check back as this experiment grows.
+              No earlier days yet. Check back as this experiment grows.
             </p>
           ) : (
             <ul className="space-y-4">
@@ -655,6 +670,7 @@ export default function Home() {
                 const sorted = [...rows].sort((a, b) => b.votes - a.votes);
                 const winner = sorted[0];
                 const spoken = formatDateSpoken(date);
+
                 return (
                   <li
                     key={date}
@@ -668,9 +684,9 @@ export default function Home() {
                         >
                           {spoken}
                         </time>
-                        {" — "}the internet leaned{" "}
+                        {" · "}the internet felt{" "}
                         <span className="font-semibold text-stone-900">
-                          {winner.mood}
+                          {String(winner.mood).toLowerCase()}
                         </span>
                         .
                       </p>
@@ -679,7 +695,7 @@ export default function Home() {
                         <time dateTime={date} className="text-stone-700">
                           {spoken}
                         </time>{" "}
-                        — no votes recorded.
+                        · no votes recorded.
                       </p>
                     )}
                   </li>
@@ -701,3 +717,6 @@ export default function Home() {
     </div>
   );
 }
+
+
+
