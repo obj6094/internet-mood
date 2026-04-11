@@ -331,16 +331,25 @@ export default function Home() {
 
   useEffect(() => {
     const faviconHref = createMoodGlobeFaviconDataUrl(heroGlobeMood);
-    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    const links = Array.from(
+      document.querySelectorAll<HTMLLinkElement>(
+        'link[rel="icon"], link[rel="shortcut icon"]',
+      ),
+    );
 
-    if (!link) {
-      link = document.createElement("link");
+    if (links.length === 0) {
+      const link = document.createElement("link");
       link.rel = "icon";
+      link.type = "image/svg+xml";
+      link.href = faviconHref;
       document.head.appendChild(link);
+      return;
     }
 
-    link.type = "image/svg+xml";
-    link.href = faviconHref;
+    for (const link of links) {
+      link.type = "image/svg+xml";
+      link.href = faviconHref;
+    }
   }, [heroGlobeMood]);
 
   async function onVote(mood: Mood) {
